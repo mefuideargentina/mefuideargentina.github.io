@@ -1,6 +1,18 @@
 # Me Fui de Argentina — estado del proyecto
 
-Última actualización: 22 de agosto de 2026.
+Última actualización: 6 de septiembre de 2026.
+
+## Planes y amistades v30
+
+- Nueva función principal “Conocé gente”, visible en navegación desktop, menú móvil, accesos rápidos, categorías y chatbot.
+- Bloque protagonista debajo del hero con acceso directo a la agenda y al formulario para proponer una juntada.
+- Agenda pública dinámica con filtros por ciudad y categoría, ordenando los planes destacados primero.
+- Tarjetas con fecha, ciudad, categoría, organizador, cupo, interesados y estado activo/completo.
+- El CTA “Me sumo” abre el contacto real del organizador por WhatsApp, Instagram, email o enlace.
+- Formulario público sin registro con validaciones; las propuestas se guardan como `pendiente` y no se publican automáticamente.
+- Panel admin ampliado para aprobar, rechazar, destacar, quitar destacado y finalizar planes.
+- Esquema y políticas RLS preparados en `supabase/planes_sociales.sql`.
+- Para activar la persistencia hay que ejecutar ese archivo una vez en el SQL Editor del proyecto Supabase “Me Fui de Argentina”.
 
 ## Dirección visual v20
 
