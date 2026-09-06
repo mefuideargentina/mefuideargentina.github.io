@@ -17,7 +17,7 @@
   <link rel="canonical" href="https://mefuideargentina.github.io/">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="site.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=29">
+  <link rel="stylesheet" href="styles.css?v=30">
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -69,6 +69,7 @@
 
     <nav>
       <a href="#inicio" class="active">Inicio</a>
+      <a href="#comunidad-social">Conocé gente</a>
       <a href="#explorar">Anuncios</a>
       <a href="#grupos">Grupos</a>
       <a href="#valencia">Valencia</a>
@@ -81,6 +82,7 @@
 
 <div id="mobileMenu" class="mobile-menu">
   <a href="#inicio"><svg class="ui-icon"><use href="#icon-home"/></svg> Inicio</a>
+  <a href="#comunidad-social"><svg class="ui-icon"><use href="#icon-heart"/></svg> Conocé gente</a>
   <a href="#grupos"><svg class="ui-icon"><use href="#icon-people"/></svg> Grupos</a>
   <a href="#explorar"><svg class="ui-icon"><use href="#icon-search"/></svg> Explorar</a>
   <a href="#valencia"><svg class="ui-icon"><use href="#icon-pin"/></svg> Empezar en Valencia</a>
@@ -165,9 +167,9 @@
         <span class="icon"><svg class="ui-icon"><use href="#icon-work"/></svg></span>
         <div><strong>Trabajo</strong><small>Ofertas y personas buscando trabajo</small></div><b class="category-arrow">↗</b>
       </button>
-      <button class="category purple" data-filter="eventos">
-        <span class="icon"><svg class="ui-icon"><use href="#icon-calendar"/></svg></span>
-        <div><strong>Eventos y planes</strong><small>Fiestas, juntadas, deportes y más</small></div><b class="category-arrow">↗</b>
+      <button class="category purple" onclick="goToSocialPlans()">
+        <span class="icon"><svg class="ui-icon"><use href="#icon-heart"/></svg></span>
+        <div><strong>Conocé gente</strong><small>Planes, juntadas y nuevas amistades</small></div><b class="category-arrow">↗</b>
       </button>
       <button class="category orange" onclick="document.querySelector('#grupos').scrollIntoView({behavior:'smooth'})">
         <span class="icon"><svg class="ui-icon"><use href="#icon-people"/></svg></span>
@@ -177,6 +179,57 @@
         <span class="icon"><svg class="ui-icon"><use href="#icon-shop"/></svg></span>
         <div><strong>Compra y venta</strong><small>Muebles, tecnología, bicis y más</small></div><b class="category-arrow">↗</b>
       </button>
+    </div>
+  </div>
+</section>
+
+<section id="comunidad-social" class="social-plans-section" aria-labelledby="socialPlansTitle">
+  <div class="container">
+    <div class="social-spotlight">
+      <div class="social-spotlight-copy">
+        <span class="social-eyebrow"><i></i> NUEVO · COMUNIDAD REAL</span>
+        <h2 id="socialPlansTitle">Conocé gente y sumate a planes.</h2>
+        <p>Hacer amigos también es parte de emigrar. Encontrá actividades, juntadas y propuestas para integrarte más fácil.</p>
+        <div class="social-spotlight-actions">
+          <a class="btn btn-social" href="#planes-activos">Ver planes <span>→</span></a>
+          <button id="openPlanForm" class="btn btn-social-secondary" type="button" aria-expanded="false" aria-controls="planProposal">Proponer un plan</button>
+        </div>
+      </div>
+      <div class="social-spotlight-visual" aria-hidden="true">
+        <span class="social-person person-one">N</span>
+        <span class="social-person person-two">M</span>
+        <span class="social-person person-three">L</span>
+        <div><strong>¿Recién llegaste?</strong><small>Hay gente con ganas de hacer algo.</small></div>
+      </div>
+    </div>
+
+    <div id="planes-activos" class="plans-area">
+      <div class="plans-heading">
+        <div><span class="section-kicker">PLANES Y AMISTADES</span><h3>¿Qué pinta hacer?</h3><p>Propuestas de la comunidad revisadas antes de publicarse.</p></div>
+        <div class="plan-filters" aria-label="Filtrar planes">
+          <label>Ciudad<select id="planCityFilter"><option value="todas">Todas</option><option value="Valencia">Valencia</option><option value="Madrid">Madrid</option><option value="Barcelona">Barcelona</option><option value="Málaga">Málaga</option><option value="Alicante">Alicante</option><option value="Sevilla">Sevilla</option></select></label>
+          <label>Categoría<select id="planCategoryFilter"><option value="todas">Todas</option><option value="mateadas">Mateadas</option><option value="after-office">After office</option><option value="deportes">Deportes</option><option value="salidas">Salidas</option><option value="networking">Networking</option><option value="nuevos">Nuevos en la ciudad</option><option value="idiomas">Idiomas / intercambio</option><option value="otros">Otros</option></select></label>
+        </div>
+      </div>
+      <div id="socialPlansGrid" class="social-plans-grid" aria-live="polite">
+        <article class="plan-card plan-skeleton" aria-hidden="true"><i></i><b></b><span></span><span></span></article>
+        <article class="plan-card plan-skeleton" aria-hidden="true"><i></i><b></b><span></span><span></span></article>
+        <article class="plan-card plan-skeleton" aria-hidden="true"><i></i><b></b><span></span><span></span></article>
+      </div>
+    </div>
+
+    <div id="planProposal" class="plan-proposal" hidden>
+      <div class="plan-proposal-copy"><span class="section-kicker">ACTIVÁ LA COMUNIDAD</span><h3>Proponé un plan</h3><p>Contanos qué querés organizar. Lo revisamos antes de publicarlo y las personas interesadas podrán contactarte directamente.</p><ul><li>Gratis y sin registro</li><li>Tu contacto será público</li><li>Publicación moderada</li></ul></div>
+      <form id="planForm" class="plan-form">
+        <label>Nombre del plan<input id="planTitle" maxlength="80" required placeholder="Ej. Mateada en Ruzafa"></label>
+        <div class="two"><label>Ciudad<select id="planCity" required><option value="">Elegí una ciudad</option><option>Valencia</option><option>Madrid</option><option>Barcelona</option><option>Málaga</option><option>Alicante</option><option>Sevilla</option><option>Otra</option></select></label><label>Categoría<select id="planCategory" required><option value="">Elegí una categoría</option><option value="mateadas">Mateadas</option><option value="after-office">After office</option><option value="deportes">Deportes</option><option value="salidas">Salidas</option><option value="networking">Networking</option><option value="nuevos">Nuevos en la ciudad</option><option value="idiomas">Idiomas / intercambio</option><option value="otros">Otros</option></select></label></div>
+        <div class="two"><label>Fecha y hora<input id="planDate" type="datetime-local" required></label><label>Cupo <small>Opcional</small><input id="planCapacity" type="number" min="2" max="500" inputmode="numeric" placeholder="Ej. 12"></label></div>
+        <label>Descripción<textarea id="planDescription" minlength="20" maxlength="500" required placeholder="Contá qué van a hacer, dónde y para quién es..."></textarea></label>
+        <div class="two"><label>Tu nombre<input id="planOrganizer" maxlength="60" required placeholder="Nombre del organizador"></label><label>Contacto<input id="planContact" maxlength="160" required placeholder="WhatsApp, @Instagram o enlace"></label></div>
+        <p class="plan-form-note">Al enviar aceptás que el contacto se muestre públicamente si el plan es aprobado.</p>
+        <button id="planSubmit" class="btn btn-social full" type="submit">Enviar para revisión</button>
+        <div id="planFormStatus" class="status" aria-live="polite"></div>
+      </form>
     </div>
   </div>
 </section>
@@ -584,6 +637,7 @@
     <div class="footer-nav">
       <strong>EXPLORAR</strong>
       <a href="#explorar">Anuncios</a>
+      <a href="#comunidad-social">Conocé gente</a>
       <a href="#grupos">Grupos</a>
       <a href="#cityQuiz">Test de ciudad</a>
       <a href="#valencia">Empezar en Valencia</a>
@@ -619,7 +673,8 @@
     <div class="chat-suggestions" aria-label="Consultas frecuentes">
       <button type="button" data-chat-question="Busco vivienda">Vivienda</button>
       <button type="button" data-chat-question="Busco trabajo">Trabajo</button>
-      <button type="button" data-chat-question="Quiero conocer gente">Comunidad</button>
+      <button type="button" data-chat-question="Quiero conocer gente y ver planes">Ver planes</button>
+      <button type="button" data-chat-question="Quiero proponer una juntada">Proponer juntada</button>
       <button type="button" data-chat-question="Dónde comprar productos argentinos">Lugares</button>
       <button type="button" data-chat-question="Quiero publicar">＋ Publicar</button>
     </div>
@@ -636,6 +691,7 @@
 </button>
 <nav class="mobile-dock" aria-label="Accesos rápidos">
   <a href="#explorar"><svg class="ui-icon"><use href="#icon-search"/></svg>Explorar</a>
+  <a href="#comunidad-social" class="mobile-dock-social"><svg class="ui-icon"><use href="#icon-heart"/></svg>Planes</a>
   <a href="#grupos"><svg class="ui-icon"><use href="#icon-people"/></svg>Grupos</a>
   <a href="#publicar" class="mobile-dock-main"><span>＋</span>Publicar</a>
 </nav>
@@ -672,6 +728,6 @@
     <div id="reportStatus" class="status"></div>
   </div>
 </div>
-<script src="app.js?v=27"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>
