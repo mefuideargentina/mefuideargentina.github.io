@@ -666,9 +666,110 @@ function openImage(url){
 
   document.body.appendChild(viewer);
 }
+
+const planCategoryLabels={"mateadas":"Mateadas","after-office":"After office","deportes":"Deportes","salidas":"Salidas","networking":"Networking","nuevos":"Nuevos en la ciudad","idiomas":"Idiomas / intercambio","otros":"Otros"};
+let socialPlans=[];
+let socialPlansLoaded=false;
+
+function formatPlanDate(value){
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime())) return "Fecha a confirmar";
+  return new Intl.DateTimeFormat("es-ES",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(date).replace(","," ·");
+}
+
+function planContactUrl(contact){
+  const value=String(contact||"").trim();
+  if(!value) return null;
+  if(/^https?:\/\//i.test(value)) return value;
+  if(value.startsWith("@")) return `https://instagram.com/${value.slice(1).replace(/[^a-z0-9._]/gi,"")}`;
+  if(value.includes("@")&&value.includes(".")) return `mailto:${value}`;
+  const digits=value.replace(/\D/g,"");
+  if(digits.length>=9) return `https://wa.me/${digits}`;
+  return null;
+}
+
+async function loadSocialPlans(){
+  const grid=document.getElementById("socialPlansGrid");
+  if(!grid) return;
+  const {data,error}=await supabaseClient.from("planes_sociales").select("*").eq("estado","aprobado").gte("fecha_evento",new Date().toISOString()).order("destacado",{ascending:false}).order("fecha_evento",{ascending:true});
+  if(error){
+    console.error("Error cargando planes sociales:",error);
+    grid.innerHTML=`<div class="plan-empty"><span>${icon("heart")}</span><h4>Estamos preparando los primeros planes</h4><p>La nueva agenda social se está activando. Mientras tanto, podés proponer una juntada para la comunidad.</p><button class="btn btn-social" type="button" onclick="openPlanProposal()">Proponer un plan</button></div>`;
+    return;
+  }
+  socialPlans=(data||[]).map(plan=>({id:String(plan.id),title:plan.titulo,city:plan.ciudad,category:plan.categoria,description:plan.descripcion,date:plan.fecha_evento,capacity:plan.cupo,interested:Number(plan.interesados_count||0),contact:plan.contacto,organizer:plan.organizador,featured:plan.destacado===true}));
+  socialPlansLoaded=true;
+  renderSocialPlans();
+}
+
+function renderSocialPlans(){
+  const grid=document.getElementById("socialPlansGrid");
+  if(!grid||!socialPlansLoaded) return;
+  const city=document.getElementById("planCityFilter")?.value||"todas";
+  const category=document.getElementById("planCategoryFilter")?.value||"todas";
+  const normalize=value=>String(value||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  const filtered=socialPlans.filter(plan=>(city==="todas"||normalize(plan.city)===normalize(city))&&(category==="todas"||plan.category===category));
+  if(!filtered.length){
+    grid.innerHTML=`<div class="plan-empty"><span>${icon("calendar")}</span><h4>No hay planes con estos filtros todavía</h4><p>La mejor manera de activar la comunidad es proponer algo simple. Una mateada, una salida o un partido ya alcanza para empezar.</p><button class="btn btn-social" type="button" onclick="openPlanProposal()">Proponer el primero</button></div>`;
+    return;
+  }
+  grid.innerHTML=filtered.map(plan=>{
+    const isComplete=plan.capacity&&plan.interested>=Number(plan.capacity);
+    const capacityText=plan.capacity?`${plan.interested} interesados · cupo ${plan.capacity}`:`${plan.interested} ${plan.interested===1?"persona interesada":"personas interesadas"}`;
+    return `<article class="plan-card" data-category="${safe(plan.category)}"><div class="plan-card-head"><span class="plan-category">${safe(planCategoryLabels[plan.category]||"Otros")}</span><span class="plan-status ${isComplete?"complete":""}"><i></i>${isComplete?"Completo":"Activo"}</span></div>${plan.featured?'<div class="plan-featured">★ PLAN DESTACADO</div>':""}<h4>${safe(plan.title)}</h4><p>${safe(plan.description)}</p><div class="plan-facts"><span>${icon("pin")} ${safe(plan.city)}</span><span>${icon("calendar")} ${safe(formatPlanDate(plan.date))}</span><span>${icon("people")} ${safe(capacityText)}</span></div><div class="plan-organizer">Organiza <strong>${safe(plan.organizer||"la comunidad")}</strong></div><button class="plan-join" type="button" ${isComplete?"disabled":""} onclick="openPlanContact('${safe(plan.id)}')">${isComplete?"Cupo completo":"Me sumo →"}</button></article>`;
+  }).join("");
+}
+
+function openPlanContact(id){
+  const plan=socialPlans.find(item=>item.id===String(id));
+  if(!plan) return;
+  const url=planContactUrl(plan.contact);
+  if(url){window.open(url,"_blank","noopener");return}
+  navigator.clipboard?.writeText(plan.contact).then(()=>showGlobalToast("Contacto copiado"));
+}
+
+function goToSocialPlans(openForm=false){
+  document.getElementById("comunidad-social")?.scrollIntoView({behavior:"smooth"});
+  chatbotPanel?.classList.remove("open");
+  chatbotButton?.setAttribute("aria-expanded","false");
+  if(openForm) window.setTimeout(openPlanProposal,450);
+}
+
+function openPlanProposal(){
+  const proposal=document.getElementById("planProposal");
+  if(!proposal) return;
+  proposal.hidden=false;
+  document.getElementById("openPlanForm")?.setAttribute("aria-expanded","true");
+  proposal.scrollIntoView({behavior:"smooth",block:"start"});
+  window.setTimeout(()=>document.getElementById("planTitle")?.focus(),450);
+}
+
+document.getElementById("openPlanForm")?.addEventListener("click",openPlanProposal);
+document.getElementById("planCityFilter")?.addEventListener("change",renderSocialPlans);
+document.getElementById("planCategoryFilter")?.addEventListener("change",renderSocialPlans);
+const planDateInput=document.getElementById("planDate");
+if(planDateInput){const now=new Date(Date.now()-new Date().getTimezoneOffset()*60000);planDateInput.min=now.toISOString().slice(0,16)}
+
+document.getElementById("planForm")?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const status=document.getElementById("planFormStatus");
+  const submit=document.getElementById("planSubmit");
+  const selectedDate=new Date(document.getElementById("planDate").value);
+  if(selectedDate<=new Date()){status.className="status error";status.textContent="Elegí una fecha futura para el plan.";return}
+  submit.disabled=true;submit.textContent="Enviando propuesta…";status.className="status";status.textContent="Guardando el plan…";
+  const capacityValue=document.getElementById("planCapacity").value;
+  const proposal={titulo:document.getElementById("planTitle").value.trim(),ciudad:document.getElementById("planCity").value,categoria:document.getElementById("planCategory").value,fecha_evento:selectedDate.toISOString(),cupo:capacityValue?Number(capacityValue):null,descripcion:document.getElementById("planDescription").value.trim(),contacto:document.getElementById("planContact").value.trim(),organizador:document.getElementById("planOrganizer").value.trim(),estado:"pendiente",destacado:false};
+  const {error}=await supabaseClient.from("planes_sociales").insert([proposal]);
+  submit.disabled=false;submit.textContent="Enviar para revisión";
+  if(error){console.error("Error enviando plan:",error);status.className="status error";status.textContent="No pudimos enviar el plan. Probá nuevamente en unos minutos.";return}
+  form.reset();status.className="status success";status.innerHTML="<strong>Plan recibido.</strong><br>Lo revisaremos antes de que aparezca en la agenda.";
+});
+
 renderGroups();
 loadApprovedListings();
 loadCommunityGroups();
+loadSocialPlans();
 const chatbotButton = document.getElementById("chatbotButton");
 const chatbotPanel = document.getElementById("chatbotPanel");
 const chatbotClose = document.getElementById("chatbotClose");
@@ -760,7 +861,22 @@ function getChatReply(rawText) {
       ]
     };
   }
-  if (/grupo|whatsapp|comunidad|conocer gente|amistad|futbol|voley|planes/.test(text)) {
+  if (/proponer.*(plan|juntada)|crear.*(plan|juntada)|organizar.*(plan|juntada)/.test(text)) {
+    return {
+      text: "¡Dale! Podés proponer una actividad sin registrarte. La revisamos antes de publicarla y tu contacto solo se muestra si queda aprobada.",
+      actions: [{ label: "Proponer una juntada", type: "propose-plan" }]
+    };
+  }
+  if (/conocer gente|amistad|hacer amigos|juntada|mateada|after office|salida|planes|futbol|voley/.test(text)) {
+    return {
+      text: "Hay una agenda de planes para conocer gente y activar juntadas. Podés sumarte a una propuesta o crear la tuya.",
+      actions: [
+        { label: "Ver planes", type: "social" },
+        { label: "Proponer un plan", type: "propose-plan" }
+      ]
+    };
+  }
+  if (/grupo|whatsapp|comunidad/.test(text)) {
     return {
       text: "Valencia es nuestra primera comunidad activa. Ahí podés encontrar grupos por intereses y necesidades.",
       actions: [{ label: "Ver grupos de Valencia", type: "groups" }]
@@ -824,6 +940,8 @@ function getChatReply(rawText) {
 function handleChatAction(action) {
   if (action.type === "listings") goToListings(action.value);
   if (action.type === "groups") goToGroups();
+  if (action.type === "social") goToSocialPlans();
+  if (action.type === "propose-plan") goToSocialPlans(true);
   if (action.type === "publish") goToPublish();
   if (action.type === "quiz") goToCityQuiz();
   if (action.type === "business") goToBusiness();
@@ -1199,7 +1317,8 @@ const scrollProgress = document.getElementById("scrollProgress");
 const desktopNavLinks = Array.from(document.querySelectorAll(".topbar nav a[href^='#']"));
 const observedSections = desktopNavLinks
   .map(link => document.querySelector(link.getAttribute("href")))
-  .filter(Boolean);
+  .filter(Boolean)
+  .sort((a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
 
 function updateScrollUI() {
   const scrollable = document.documentElement.scrollHeight - window.innerHeight;
@@ -1219,7 +1338,7 @@ window.addEventListener("scroll", updateScrollUI, { passive: true });
 updateScrollUI();
 
 const revealTargets = document.querySelectorAll(
-  ".section-title, .recent-heading, .category, .listing-card, .group-card, .journey-heading, .journey-steps, .valencia-guide-head, .valencia-guide-grid, .valencia-faq, .business-card, .service-card, .places-heading, .place-card, .safety-heading, .safety-list, .publish-info, .publish-card"
+  ".section-title, .recent-heading, .category, .social-spotlight, .plans-heading, .plan-card, .plan-proposal, .listing-card, .group-card, .journey-heading, .journey-steps, .valencia-guide-head, .valencia-guide-grid, .valencia-faq, .business-card, .service-card, .places-heading, .place-card, .safety-heading, .safety-list, .publish-info, .publish-card"
 );
 
 if ("IntersectionObserver" in window) {
