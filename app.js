@@ -716,16 +716,43 @@ function renderSocialPlans(){
   grid.innerHTML=filtered.map(plan=>{
     const isComplete=plan.capacity&&plan.interested>=Number(plan.capacity);
     const capacityText=plan.capacity?`${plan.interested} interesados · cupo ${plan.capacity}`:`${plan.interested} ${plan.interested===1?"persona interesada":"personas interesadas"}`;
-    return `<article class="plan-card" data-category="${safe(plan.category)}"><div class="plan-card-head"><span class="plan-category">${safe(planCategoryLabels[plan.category]||"Otros")}</span><span class="plan-status ${isComplete?"complete":""}"><i></i>${isComplete?"Completo":"Activo"}</span></div>${plan.featured?'<div class="plan-featured">★ PLAN DESTACADO</div>':""}<h4>${safe(plan.title)}</h4><p>${safe(plan.description)}</p><div class="plan-facts"><span>${icon("pin")} ${safe(plan.city)}</span><span>${icon("calendar")} ${safe(formatPlanDate(plan.date))}</span><span>${icon("people")} ${safe(capacityText)}</span></div><div class="plan-organizer">Organiza <strong>${safe(plan.organizer||"la comunidad")}</strong></div><button class="plan-join" type="button" ${isComplete?"disabled":""} onclick="openPlanContact('${safe(plan.id)}')">${isComplete?"Cupo completo":"Me sumo →"}</button></article>`;
+    const joined=hasPlanInterest(plan.id);
+    return `<article class="plan-card" data-category="${safe(plan.category)}"><div class="plan-card-head"><span class="plan-category">${safe(planCategoryLabels[plan.category]||"Otros")}</span><span class="plan-status ${isComplete?"complete":""}"><i></i>${isComplete?"Completo":"Activo"}</span></div>${plan.featured?'<div class="plan-featured">★ PLAN DESTACADO</div>':""}<h4>${safe(plan.title)}</h4><p>${safe(plan.description)}</p><div class="plan-facts"><span>${icon("pin")} ${safe(plan.city)}</span><span>${icon("calendar")} ${safe(formatPlanDate(plan.date))}</span><span>${icon("people")} ${safe(capacityText)}</span></div><div class="plan-organizer">Organiza <strong>${safe(plan.organizer||"la comunidad")}</strong></div><button class="plan-join" type="button" ${isComplete&&!joined?"disabled":""} onclick="joinSocialPlan('${safe(plan.id)}')">${isComplete&&!joined?"Cupo completo":joined?"Ver contacto →":"Me sumo →"}</button></article>`;
   }).join("");
 }
 
-function openPlanContact(id){
+function storageGet(key){try{return localStorage.getItem(key)}catch{return null}}
+function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
+function getCommunityClientId(){
+  let id=storageGet("mf-community-client");
+  if(id&&/^[0-9a-f-]{36}$/i.test(id)) return id;
+  id=crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,char=>{const value=Math.random()*16|0;return (char==="x"?value:(value&3|8)).toString(16)});
+  storageSet("mf-community-client",id);
+  return id;
+}
+function hasPlanInterest(id){return storageGet(`mf-plan-interest-${id}`)==="1"}
+
+async function joinSocialPlan(id){
   const plan=socialPlans.find(item=>item.id===String(id));
   if(!plan) return;
   const url=planContactUrl(plan.contact);
-  if(url){window.open(url,"_blank","noopener");return}
-  navigator.clipboard?.writeText(plan.contact).then(()=>showGlobalToast("Contacto copiado"));
+  if(url) window.open(url,"_blank","noopener");
+  else navigator.clipboard?.writeText(plan.contact).then(()=>showGlobalToast("Contacto copiado"));
+  if(hasPlanInterest(id)) return;
+  storageSet(`mf-plan-interest-${id}`,"1");
+  plan.interested+=1;
+  renderSocialPlans();
+  const {data,error}=await supabaseClient.rpc("registrar_interes_plan",{p_plan_id:Number(id),p_client_id:getCommunityClientId()});
+  if(error){
+    console.error("Error registrando interés:",error);
+    storageSet(`mf-plan-interest-${id}`,"0");
+    plan.interested=Math.max(0,plan.interested-1);
+    renderSocialPlans();
+    showGlobalToast("Abrimos el contacto, pero no pudimos actualizar el contador.");
+    return;
+  }
+  if(Number.isFinite(Number(data))) plan.interested=Number(data);
+  renderSocialPlans();
 }
 
 function goToSocialPlans(openForm=false){
@@ -765,6 +792,136 @@ document.getElementById("planForm")?.addEventListener("submit",async event=>{
   if(error){console.error("Error enviando plan:",error);status.className="status error";status.textContent="No pudimos enviar el plan. Probá nuevamente en unos minutos.";return}
   form.reset();status.className="status success";status.innerHTML="<strong>Plan recibido.</strong><br>Lo revisaremos antes de que aparezca en la agenda.";
 });
+
+const CHAT_DAYS_VISIBLE=15;
+let communityChatMessages=[];
+let communityChatChannel=null;
+let selectedChatReportId=null;
+
+function formatChatTime(value){
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime())) return "Ahora";
+  const today=new Date();
+  const sameDay=date.toDateString()===today.toDateString();
+  return new Intl.DateTimeFormat("es-ES",sameDay?{hour:"2-digit",minute:"2-digit"}:{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(date);
+}
+
+function renderCommunityChat(scrollToEnd=false){
+  const container=document.getElementById("communityChatMessages");
+  if(!container) return;
+  if(!communityChatMessages.length){
+    container.innerHTML='<div class="chat-empty"><strong>Todavía nadie rompió el hielo.</strong>Podés ser la primera persona en saludar o proponer algo.</div>';
+    return;
+  }
+  container.innerHTML=communityChatMessages.map(item=>`<article class="community-message"><div class="community-message-head"><strong>${safe(item.apodo)}</strong><time datetime="${safe(item.created_at)}">${safe(formatChatTime(item.created_at))}</time></div><p>${safe(item.mensaje)}</p><div class="community-message-actions"><button type="button" onclick="turnChatIntoPlan('${safe(item.id)}')">Proponer como plan</button><button type="button" onclick="openChatReport('${safe(item.id)}')">Reportar</button></div></article>`).join("");
+  if(scrollToEnd) container.scrollTop=container.scrollHeight;
+}
+
+async function loadCommunityChat(scrollToEnd=false){
+  const container=document.getElementById("communityChatMessages");
+  if(!container) return;
+  const city=document.getElementById("chatCity")?.value||"Valencia";
+  const since=new Date(Date.now()-CHAT_DAYS_VISIBLE*86400000).toISOString();
+  const {data,error}=await supabaseClient.from("chat_mensajes").select("id,ciudad,apodo,mensaje,plan_id,created_at").eq("ciudad",city).eq("estado","visible").gte("created_at",since).order("created_at",{ascending:true}).limit(60);
+  if(error){
+    console.error("Error cargando chat:",error);
+    container.innerHTML='<div class="chat-empty"><strong>El chat está casi listo.</strong>Falta activar la actualización de Supabase para empezar a conversar.</div>';
+    document.getElementById("chatPresence").innerHTML="<i></i> Próximamente";
+    return;
+  }
+  communityChatMessages=data||[];
+  renderCommunityChat(scrollToEnd);
+}
+
+async function connectCommunityChat(){
+  const city=document.getElementById("chatCity")?.value||"Valencia";
+  storageSet("mf-chat-city",city);
+  if(communityChatChannel) await supabaseClient.removeChannel(communityChatChannel);
+  await loadCommunityChat(true);
+  const room=`comunidad-${city.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-")}`;
+  communityChatChannel=supabaseClient.channel(room,{config:{presence:{key:getCommunityClientId()}}});
+  communityChatChannel
+    .on("presence",{event:"sync"},()=>{
+      const count=Object.keys(communityChatChannel.presenceState()).length;
+      document.getElementById("chatPresence").innerHTML=`<i></i> ${count||1} ${count===1?"persona conectada":"personas conectadas"}`;
+    })
+    .on("postgres_changes",{event:"*",schema:"public",table:"chat_mensajes",filter:`ciudad=eq.${city}`},()=>loadCommunityChat(true))
+    .subscribe(async status=>{
+      if(status==="SUBSCRIBED") await communityChatChannel.track({online_at:new Date().toISOString()});
+      if(status==="CHANNEL_ERROR"||status==="TIMED_OUT") document.getElementById("chatPresence").innerHTML="<i></i> Conexión lenta";
+    });
+}
+
+function turnChatIntoPlan(id){
+  const source=id?communityChatMessages.find(item=>String(item.id)===String(id)):null;
+  const draft=source?.mensaje||document.getElementById("chatMessage")?.value.trim()||"";
+  openPlanProposal();
+  const city=document.getElementById("chatCity")?.value||"Valencia";
+  document.getElementById("planCity").value=city;
+  document.getElementById("planCategory").value="otros";
+  if(draft){
+    const clean=draft.replace(/[!?¿¡]+/g,"").trim();
+    document.getElementById("planTitle").value=clean.slice(0,77)+(clean.length>77?"…":"");
+    document.getElementById("planDescription").value=`Plan surgido del chat de ${city}: ${draft}`.slice(0,500);
+  }
+}
+
+function openChatReport(id){
+  selectedChatReportId=id;
+  const modal=document.getElementById("chatReportModal");
+  modal.hidden=false;
+  document.getElementById("chatReportStatus").textContent="";
+  document.getElementById("chatReportComment").value="";
+}
+function closeChatReport(){document.getElementById("chatReportModal").hidden=true;selectedChatReportId=null}
+
+document.getElementById("communityChatForm")?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const nickname=document.getElementById("chatNickname").value.trim();
+  const message=document.getElementById("chatMessage").value.trim();
+  const status=document.getElementById("chatFormStatus");
+  const send=document.getElementById("chatSend");
+  if(document.getElementById("chatWebsite").value) return;
+  if(nickname.length<2||message.length<2){status.className="status error";status.textContent="Escribí un apodo y un mensaje.";return}
+  storageSet("mf-chat-nickname",nickname);
+  send.disabled=true;send.textContent="Enviando…";status.textContent="";
+  const {error}=await supabaseClient.rpc("publicar_mensaje_chat",{p_client_id:getCommunityClientId(),p_ciudad:document.getElementById("chatCity").value,p_apodo:nickname,p_mensaje:message});
+  send.disabled=false;send.textContent="Enviar mensaje";
+  if(error){
+    console.error("Error enviando mensaje:",error);
+    status.className="status error";
+    status.textContent=String(error.message).includes("RATE_LIMIT")?"Esperá unos segundos antes de volver a escribir.":String(error.message).includes("HOURLY_LIMIT")?"Llegaste al límite temporal de mensajes. Probá más tarde.":"No pudimos enviar el mensaje. Probá nuevamente.";
+    return;
+  }
+  document.getElementById("chatMessage").value="";document.getElementById("chatCharacterCount").textContent="0/280";
+  status.className="status";status.textContent="Mensaje enviado.";
+  await loadCommunityChat(true);
+  window.setTimeout(()=>{if(status.textContent==="Mensaje enviado.") status.textContent=""},2500);
+});
+
+document.querySelectorAll("[data-chat-prompt]").forEach(button=>button.addEventListener("click",()=>{
+  const input=document.getElementById("chatMessage");input.value=button.dataset.chatPrompt;input.focus();document.getElementById("chatCharacterCount").textContent=`${input.value.length}/280`;
+}));
+document.getElementById("chatMessage")?.addEventListener("input",event=>{document.getElementById("chatCharacterCount").textContent=`${event.target.value.length}/280`});
+document.getElementById("chatCreatePlan")?.addEventListener("click",()=>turnChatIntoPlan(null));
+document.getElementById("chatCity")?.addEventListener("change",connectCommunityChat);
+document.getElementById("chatReportClose")?.addEventListener("click",closeChatReport);
+document.getElementById("chatReportModal")?.addEventListener("click",event=>{if(event.target.id==="chatReportModal") closeChatReport()});
+document.getElementById("chatReportSend")?.addEventListener("click",async()=>{
+  if(!selectedChatReportId) return;
+  const button=document.getElementById("chatReportSend");const status=document.getElementById("chatReportStatus");
+  button.disabled=true;button.textContent="Enviando…";
+  const {error}=await supabaseClient.rpc("reportar_mensaje_chat",{p_mensaje_id:Number(selectedChatReportId),p_motivo:document.getElementById("chatReportReason").value,p_comentario:document.getElementById("chatReportComment").value.trim()||null});
+  button.disabled=false;button.textContent="Enviar reporte";
+  if(error){status.className="status error";status.textContent="No pudimos enviar el reporte.";return}
+  status.className="status success";status.textContent="Reporte recibido. Gracias por avisar.";
+  window.setTimeout(closeChatReport,1200);
+});
+
+const savedChatCity=storageGet("mf-chat-city");
+if(savedChatCity&&[...document.getElementById("chatCity")?.options||[]].some(option=>option.value===savedChatCity)) document.getElementById("chatCity").value=savedChatCity;
+document.getElementById("chatNickname").value=storageGet("mf-chat-nickname")||"";
+connectCommunityChat();
 
 renderGroups();
 loadApprovedListings();
@@ -867,6 +1024,12 @@ function getChatReply(rawText) {
       actions: [{ label: "Proponer una juntada", type: "propose-plan" }]
     };
   }
+  if (/chat|charlar|hablar con gente|conversacion/.test(text)) {
+    return {
+      text: "Entrá al chat público de tu ciudad, presentate y encontrá gente con ganas de hacer algo. No necesitás registrarte.",
+      actions: [{ label: "Entrar al chat", type: "chat-room" }]
+    };
+  }
   if (/conocer gente|amistad|hacer amigos|juntada|mateada|after office|salida|planes|futbol|voley/.test(text)) {
     return {
       text: "Hay una agenda de planes para conocer gente y activar juntadas. Podés sumarte a una propuesta o crear la tuya.",
@@ -941,6 +1104,7 @@ function handleChatAction(action) {
   if (action.type === "listings") goToListings(action.value);
   if (action.type === "groups") goToGroups();
   if (action.type === "social") goToSocialPlans();
+  if (action.type === "chat-room") goToCommunityChat();
   if (action.type === "propose-plan") goToSocialPlans(true);
   if (action.type === "publish") goToPublish();
   if (action.type === "quiz") goToCityQuiz();
@@ -951,6 +1115,13 @@ function handleChatAction(action) {
     chatbotPanel?.classList.remove("open");
     chatbotButton?.setAttribute("aria-expanded", "false");
   }
+}
+
+function goToCommunityChat(){
+  document.getElementById("chat-comunidad")?.scrollIntoView({behavior:"smooth",block:"start"});
+  chatbotPanel?.classList.remove("open");
+  chatbotButton?.setAttribute("aria-expanded","false");
+  window.setTimeout(()=>document.getElementById("chatMessage")?.focus(),450);
 }
 
 function askChat(question) {

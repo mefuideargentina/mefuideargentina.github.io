@@ -17,7 +17,7 @@
   <link rel="canonical" href="https://mefuideargentina.github.io/">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="site.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=30">
+  <link rel="stylesheet" href="styles.css?v=31">
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -216,6 +216,43 @@
         <article class="plan-card plan-skeleton" aria-hidden="true"><i></i><b></b><span></span><span></span></article>
         <article class="plan-card plan-skeleton" aria-hidden="true"><i></i><b></b><span></span><span></span></article>
       </div>
+    </div>
+
+    <div id="chat-comunidad" class="community-chat" aria-labelledby="communityChatTitle">
+      <div class="community-chat-head">
+        <div>
+          <span class="section-kicker">CHARLÁ AHORA</span>
+          <h3 id="communityChatTitle">La comunidad está hablando.</h3>
+          <p>Presentate, preguntá o encontrá gente para hacer algo. Los mensajes duran 15 días.</p>
+        </div>
+        <div class="chat-room-controls">
+          <label>Ciudad<select id="chatCity"><option>Valencia</option><option>Madrid</option><option>Barcelona</option><option>Málaga</option><option>Alicante</option><option>Sevilla</option></select></label>
+          <span id="chatPresence" class="chat-presence"><i></i> Conectando…</span>
+        </div>
+      </div>
+
+      <div class="community-chat-shell">
+        <div class="chat-quick-prompts" aria-label="Ideas para empezar">
+          <button type="button" data-chat-prompt="¡Hola! Recién llegué a la ciudad 👋">Recién llegué 👋</button>
+          <button type="button" data-chat-prompt="¿Alguien para tomar algo esta semana?">¿Tomamos algo? 🍻</button>
+          <button type="button" data-chat-prompt="¿Quién se prende a una mateada?">¿Una mateada? 🧉</button>
+          <button type="button" data-chat-prompt="Busco gente para hacer deporte">Hacer deporte ⚽</button>
+        </div>
+        <div id="communityChatMessages" class="community-chat-messages" aria-live="polite">
+          <div class="chat-loading">Cargando la conversación…</div>
+        </div>
+        <form id="communityChatForm" class="community-chat-form">
+          <label class="chat-name-field">Tu apodo<input id="chatNickname" maxlength="30" autocomplete="nickname" required placeholder="Ej. Nico"></label>
+          <label class="chat-message-field">Mensaje<textarea id="chatMessage" minlength="2" maxlength="280" required placeholder="Escribí algo para la comunidad…"></textarea><span id="chatCharacterCount">0/280</span></label>
+          <label class="chat-honeypot" aria-hidden="true">No completar<input id="chatWebsite" tabindex="-1" autocomplete="off"></label>
+          <div class="chat-form-actions">
+            <button id="chatCreatePlan" class="chat-plan-button" type="button">Convertir en plan</button>
+            <button id="chatSend" class="btn btn-social" type="submit">Enviar mensaje</button>
+          </div>
+          <div id="chatFormStatus" class="status" aria-live="polite"></div>
+        </form>
+      </div>
+      <p class="chat-safety-note">No compartas datos sensibles. Podés reportar cualquier mensaje que incumpla las normas de la comunidad.</p>
     </div>
 
     <div id="planProposal" class="plan-proposal" hidden>
@@ -674,6 +711,7 @@
       <button type="button" data-chat-question="Busco vivienda">Vivienda</button>
       <button type="button" data-chat-question="Busco trabajo">Trabajo</button>
       <button type="button" data-chat-question="Quiero conocer gente y ver planes">Ver planes</button>
+      <button type="button" data-chat-question="Quiero entrar al chat público">Chat público</button>
       <button type="button" data-chat-question="Quiero proponer una juntada">Proponer juntada</button>
       <button type="button" data-chat-question="Dónde comprar productos argentinos">Lugares</button>
       <button type="button" data-chat-question="Quiero publicar">＋ Publicar</button>
@@ -728,6 +766,19 @@
     <div id="reportStatus" class="status"></div>
   </div>
 </div>
-<script src="app.js?v=30"></script>
+
+<div id="chatReportModal" class="chat-report-modal" role="dialog" aria-modal="true" aria-labelledby="chatReportTitle" hidden>
+  <div class="chat-report-card">
+    <button id="chatReportClose" class="chat-report-close" type="button" aria-label="Cerrar">×</button>
+    <span class="section-kicker">CUIDEMOS LA COMUNIDAD</span>
+    <h3 id="chatReportTitle">Reportar mensaje</h3>
+    <p>Lo revisaremos desde el panel de moderación.</p>
+    <label>Motivo<select id="chatReportReason"><option value="spam">Spam o publicidad</option><option value="acoso">Acoso o discriminación</option><option value="estafa">Posible estafa</option><option value="datos-personales">Datos personales</option><option value="otro">Otro</option></select></label>
+    <label>Comentario <small>Opcional</small><textarea id="chatReportComment" maxlength="300" placeholder="Contanos brevemente qué pasó…"></textarea></label>
+    <button id="chatReportSend" class="btn btn-social full" type="button">Enviar reporte</button>
+    <div id="chatReportStatus" class="status" aria-live="polite"></div>
+  </div>
+</div>
+<script src="app.js?v=31"></script>
 </body>
 </html>

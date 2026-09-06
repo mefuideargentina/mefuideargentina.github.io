@@ -2,6 +2,17 @@
 
 Última actualización: 6 de septiembre de 2026.
 
+## Chat público y participación v31
+
+- Nueva sala pública por ciudad dentro de “Conocé gente”, sin registro obligatorio y con apodo recordado en el dispositivo.
+- Mensajes en tiempo real con Supabase Realtime, presencia aproximada de personas conectadas y conservación pública durante 15 días.
+- Respuestas rápidas para romper el hielo y CTA para convertir cualquier idea de la conversación en una propuesta de plan moderada.
+- Reportes públicos de mensajes y herramientas admin para ocultar, restaurar y revisar contenido denunciado.
+- Protección básica contra spam: honeypot, mensajes sin enlaces, espera mínima de 7 segundos, límite de 30 mensajes por hora y control de duplicados.
+- El botón “Me sumo” registra un interés real mediante una función segura y evita duplicados por plan y dispositivo.
+- La ampliación de base de datos, funciones RPC, RLS y publicación Realtime está en `supabase/chat_comunidad.sql`.
+- Para activar el chat y el contador hay que ejecutar ese archivo una vez en el SQL Editor del proyecto Supabase.
+
 ## Planes y amistades v30
 
 - Nueva función principal “Conocé gente”, visible en navegación desktop, menú móvil, accesos rápidos, categorías y chatbot.
